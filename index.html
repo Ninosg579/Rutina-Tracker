@@ -63,7 +63,7 @@
   <header>📅 Mi Rutina Semanal de Ejercicio</header>
   <div class="container">
     <button class="btn" onclick="agregarActividad()">➕ Añadir Actividad</button>
-    <button class="btn" onclick="verGraficos()">📈 Ver Gráficos</button>
+    <button class="btn" onclick="verGraficos()">📈 Ver Gráfico Semanal</button>
 
     <table id="scheduleTable">
       <thead>
@@ -77,7 +77,7 @@
           <th>Domingo</th>
         </tr>
       </thead>
-      <tbody id="scheduleBody">
+      <tbody>
         <tr id="row"></tr>
       </tbody>
     </table>
@@ -91,10 +91,42 @@
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
     const tabla = document.getElementById("row");
 
+    // Verifica si es lunes para resetear semana
+    function resetearSemanaSiEsLunes() {
+      const hoy = new Date();
+      const ultimoReset = localStorage.getItem("ultimaSemana") || "";
+      const semanaActual = `${hoy.getFullYear()}-W${getWeekNumber(hoy)}`;
+
+      if (hoy.getDay() === 1 && semanaActual !== ultimoReset) {
+        dias.forEach(dia => {
+          localStorage.removeItem(`contenido_${dia}`);
+          for (let i = 0; i < 20; i++) {
+            localStorage.removeItem(`completo_${dia}_${i}`);
+          }
+        });
+        localStorage.setItem("ultimaSemana", semanaActual);
+        location.reload();
+      }
+    }
+
+    function getWeekNumber(d) {
+      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    }
+
     dias.forEach(dia => {
       const celda = document.createElement("td");
       celda.style.verticalAlign = "top";
       celda.innerHTML = localStorage.getItem(`contenido_${dia}`) || "";
+      Array.from(celda.children).forEach((div, i) => {
+        const clave = `completo_${dia}_${i}`;
+        if (localStorage.getItem(clave) === "true") {
+          div.classList.add("completed");
+        }
+      });
       celda.onclick = e => {
         if (e.target.tagName === 'DIV') {
           e.target.classList.toggle("completed");
@@ -119,7 +151,6 @@
       div.dataset.index = celda.children.length;
       div.style.cursor = "pointer";
 
-      const claveContenido = `contenido_${dia}`;
       celda.appendChild(div);
       guardarContenido(dia);
     }
@@ -131,39 +162,38 @@
     }
 
     function verGraficos() {
-      const datos = dias.map(dia => {
-        let count = 0;
-        const index = dias.indexOf(dia);
-        const celda = tabla.cells[index];
+      let total = 0, completadas = 0;
+      dias.forEach(dia => {
+        const celda = tabla.cells[dias.indexOf(dia)];
+        total += celda.children.length;
         for (let i = 0; i < celda.children.length; i++) {
           const clave = `completo_${dia}_${i}`;
-          if (localStorage.getItem(clave) === "true") count++;
+          if (localStorage.getItem(clave) === "true") completadas++;
         }
-        return count;
       });
 
       const ctx = document.getElementById('grafico').getContext('2d');
       new Chart(ctx, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
-          labels: dias,
+          labels: ['Completadas', 'Pendientes'],
           datasets: [{
-            label: 'Actividades completadas',
-            data: datos,
-            backgroundColor: '#77c9b8'
+            data: [completadas, total - completadas],
+            backgroundColor: ['#77c9b8', '#f9c2c2']
           }]
         },
         options: {
           responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              precision: 0
+          plugins: {
+            legend: {
+              position: 'bottom'
             }
           }
         }
       });
     }
+
+    resetearSemanaSiEsLunes();
   </script>
 </body>
 </html>
