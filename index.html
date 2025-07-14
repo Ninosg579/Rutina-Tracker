@@ -105,7 +105,7 @@
 
       if (hoy.getDay() === 1 && semanaActual !== ultimoReset) {
         dias.forEach(dia => {
-          for (let i = 0; i < 20; i++) {
+          for (let i = 0; i < 50; i++) {
             localStorage.removeItem(`completo_${dia}_${i}`);
           }
         });
@@ -163,6 +163,7 @@
     }
 
     function agregarBotonEliminar(div, dia) {
+      if (div.querySelector('.delete-btn')) return; // Evita duplicar botones
       const btn = document.createElement("span");
       btn.textContent = "✕";
       btn.className = "delete-btn";
