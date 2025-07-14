@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi Rutina Semanal</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -22,7 +23,6 @@
       max-width: 1000px;
       margin: 2rem auto;
       padding: 1rem;
-      overflow-x: auto;
     }
     table {
       width: 100%;
@@ -33,24 +33,14 @@
     }
     th, td {
       border: 1px solid #e1eaea;
-      padding: 8px;
+      padding: 10px;
       text-align: center;
     }
     th {
       background: #e6f2ef;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    .fixed-col {
-      background: #f0f8f5;
-      font-weight: bold;
-      position: sticky;
-      left: 0;
-      z-index: 1;
     }
     .btn {
-      margin-top: 1rem;
+      margin: 0.5rem;
       padding: 10px 20px;
       background: #aadcd3;
       border: none;
@@ -64,10 +54,13 @@
     .completed {
       background-color: #d4edda !important;
     }
+    .chart-container {
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
-  <header>📅 Mi Horario Semanal de Ejercicio</header>
+  <header>📅 Mi Rutina Semanal de Ejercicio</header>
   <div class="container">
     <button class="btn" onclick="agregarActividad()">➕ Añadir Actividad</button>
     <button class="btn" onclick="verGraficos()">📈 Ver Gráficos</button>
@@ -75,7 +68,6 @@
     <table id="scheduleTable">
       <thead>
         <tr>
-          <th class="fixed-col">Hora</th>
           <th>Lunes</th>
           <th>Martes</th>
           <th>Miércoles</th>
@@ -86,73 +78,92 @@
         </tr>
       </thead>
       <tbody id="scheduleBody">
-        <!-- Filas generadas por JavaScript -->
+        <tr id="row"></tr>
       </tbody>
     </table>
+
+    <div class="chart-container">
+      <canvas id="grafico"></canvas>
+    </div>
   </div>
 
   <script>
-    const horas = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const tabla = document.getElementById("row");
 
-    const tabla = document.getElementById("scheduleBody");
-
-    function crearTabla() {
-      horas.forEach(hora => {
-        const fila = document.createElement("tr");
-        const celdaHora = document.createElement("td");
-        celdaHora.textContent = hora;
-        celdaHora.classList.add("fixed-col");
-        fila.appendChild(celdaHora);
-
-        dias.forEach(dia => {
-          const celda = document.createElement("td");
-          const contenidoGuardado = localStorage.getItem(`${dia}_${hora}_contenido`) || "";
-          const completado = localStorage.getItem(`${dia}_${hora}_completo`) === "true";
-          celda.textContent = contenidoGuardado;
-          celda.onclick = () => toggleCompleto(celda, dia, hora);
-          if (completado) celda.classList.add("completed");
-          fila.appendChild(celda);
-        });
-
-        tabla.appendChild(fila);
-      });
-    }
-
-    function toggleCompleto(celda, dia, hora) {
-      const clave = `${dia}_${hora}_completo`;
-      const estaCompleto = localStorage.getItem(clave) === "true";
-      if (estaCompleto) {
-        celda.classList.remove("completed");
-        localStorage.setItem(clave, false);
-      } else {
-        celda.classList.add("completed");
-        localStorage.setItem(clave, true);
-      }
-    }
+    dias.forEach(dia => {
+      const celda = document.createElement("td");
+      celda.style.verticalAlign = "top";
+      celda.innerHTML = localStorage.getItem(`contenido_${dia}`) || "";
+      celda.onclick = e => {
+        if (e.target.tagName === 'DIV') {
+          e.target.classList.toggle("completed");
+          const clave = `completo_${dia}_${e.target.dataset.index}`;
+          localStorage.setItem(clave, e.target.classList.contains("completed"));
+        }
+      };
+      tabla.appendChild(celda);
+    });
 
     function agregarActividad() {
       const dia = prompt("¿Para qué día quieres añadir la actividad? Ej: Lunes");
-      const hora = prompt("¿A qué hora? (formato 07:00 - 20:00)");
       const actividad = prompt("¿Qué actividad quieres añadir?");
-
-      if (!dias.includes(dia) || !horas.includes(hora) || !actividad) {
-        alert("Datos inválidos. Asegúrate de usar día y hora válidos.");
+      if (!dias.includes(dia) || !actividad) {
+        alert("Datos inválidos.");
         return;
       }
+      const index = dias.indexOf(dia);
+      const celda = tabla.cells[index];
+      const div = document.createElement("div");
+      div.textContent = actividad;
+      div.dataset.index = celda.children.length;
+      div.style.cursor = "pointer";
 
-      const fila = Array.from(tabla.rows).find(row => row.cells[0].textContent === hora);
-      const indexDia = dias.indexOf(dia) + 1;
-      const celda = fila.cells[indexDia];
-      celda.textContent = actividad;
-      localStorage.setItem(`${dia}_${hora}_contenido`, actividad);
+      const claveContenido = `contenido_${dia}`;
+      celda.appendChild(div);
+      guardarContenido(dia);
+    }
+
+    function guardarContenido(dia) {
+      const index = dias.indexOf(dia);
+      const celda = tabla.cells[index];
+      localStorage.setItem(`contenido_${dia}`, celda.innerHTML);
     }
 
     function verGraficos() {
-      alert("Aquí irán los gráficos en el futuro. Próximamente 🚧");
-    }
+      const datos = dias.map(dia => {
+        let count = 0;
+        const index = dias.indexOf(dia);
+        const celda = tabla.cells[index];
+        for (let i = 0; i < celda.children.length; i++) {
+          const clave = `completo_${dia}_${i}`;
+          if (localStorage.getItem(clave) === "true") count++;
+        }
+        return count;
+      });
 
-    crearTabla();
+      const ctx = document.getElementById('grafico').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dias,
+          datasets: [{
+            label: 'Actividades completadas',
+            data: datos,
+            backgroundColor: '#77c9b8'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              precision: 0
+            }
+          }
+        }
+      });
+    }
   </script>
 </body>
 </html>
