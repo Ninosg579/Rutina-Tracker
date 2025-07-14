@@ -22,121 +22,137 @@
       max-width: 1000px;
       margin: 2rem auto;
       padding: 1rem;
+      overflow-x: auto;
     }
     table {
       width: 100%;
       border-collapse: collapse;
       background: white;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      table-layout: fixed;
     }
     th, td {
       border: 1px solid #e1eaea;
-      padding: 10px;
-      text-align: left;
+      padding: 8px;
+      text-align: center;
     }
     th {
       background: #e6f2ef;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
-    input[type="checkbox"] {
-      transform: scale(1.2);
+    .fixed-col {
+      background: #f0f8f5;
+      font-weight: bold;
+      position: sticky;
+      left: 0;
+      z-index: 1;
     }
-    textarea {
-      width: 100%;
-      height: 60px;
-      resize: none;
-      font-family: inherit;
+    .btn {
+      margin-top: 1rem;
+      padding: 10px 20px;
+      background: #aadcd3;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
     }
-    .summary {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: #e6f2ef;
-      border-radius: 8px;
+    .btn:hover {
+      background: #9cd0c7;
+    }
+    .completed {
+      background-color: #d4edda !important;
     }
   </style>
 </head>
 <body>
-  <header>🧘‍♀️ Mi Rutina Semanal de Ejercicio</header>
+  <header>📅 Mi Horario Semanal de Ejercicio</header>
   <div class="container">
-    <table id="routineTable">
+    <button class="btn" onclick="agregarActividad()">➕ Añadir Actividad</button>
+    <button class="btn" onclick="verGraficos()">📈 Ver Gráficos</button>
+
+    <table id="scheduleTable">
       <thead>
         <tr>
-          <th>Día</th>
-          <th>Hora</th>
-          <th>Actividad</th>
-          <th>¿Hecho?</th>
-          <th>Notas</th>
+          <th class="fixed-col">Hora</th>
+          <th>Lunes</th>
+          <th>Martes</th>
+          <th>Miércoles</th>
+          <th>Jueves</th>
+          <th>Viernes</th>
+          <th>Sábado</th>
+          <th>Domingo</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- Las filas serán generadas por JavaScript -->
+      <tbody id="scheduleBody">
+        <!-- Filas generadas por JavaScript -->
       </tbody>
     </table>
-
-    <div class="summary">
-      <h3>Resumen Mensual</h3>
-      <p id="doneCount">Actividades completadas: 0</p>
-    </div>
   </div>
 
   <script>
+    const horas = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const actividades = {
-      "Lunes": "Fuerza Tren Inferior + Movilidad (8:00 - 9:00)",
-      "Martes": "Trote Suave + Estiramiento (8:00 - 9:00)",
-      "Miércoles": "Fuerza Tren Superior + Core (8:00 - 9:00)",
-      "Jueves": "Yoga Dinámico / Vinyasa (8:00 - 9:00)",
-      "Viernes": "Trote + Core (8:00 - 9:00)",
-      "Sábado": "Yoga Restaurativo (10:00 - 11:00)",
-      "Domingo": "Libre o Caminata Activa (11:00 - 12:00)"
-    };
 
-    const tableBody = document.querySelector("#routineTable tbody");
+    const tabla = document.getElementById("scheduleBody");
 
-    dias.forEach((dia, index) => {
-      const row = document.createElement("tr");
-      const hora = actividades[dia].match(/\(([^)]+)\)/)[1];
-      const actividad = actividades[dia].split("(")[0];
+    function crearTabla() {
+      horas.forEach(hora => {
+        const fila = document.createElement("tr");
+        const celdaHora = document.createElement("td");
+        celdaHora.textContent = hora;
+        celdaHora.classList.add("fixed-col");
+        fila.appendChild(celdaHora);
 
-      row.innerHTML = `
-        <td>${dia}</td>
-        <td>${hora}</td>
-        <td>${actividad}</td>
-        <td><input type="checkbox" data-dia="${dia}" /></td>
-        <td><textarea data-dia="${dia}"></textarea></td>
-      `;
-      tableBody.appendChild(row);
-    });
+        dias.forEach(dia => {
+          const celda = document.createElement("td");
+          const contenidoGuardado = localStorage.getItem(`${dia}_${hora}_contenido`) || "";
+          const completado = localStorage.getItem(`${dia}_${hora}_completo`) === "true";
+          celda.textContent = contenidoGuardado;
+          celda.onclick = () => toggleCompleto(celda, dia, hora);
+          if (completado) celda.classList.add("completed");
+          fila.appendChild(celda);
+        });
 
-    function guardarEstado() {
-      dias.forEach(dia => {
-        const checkbox = document.querySelector(`input[data-dia="${dia}"]`);
-        const textarea = document.querySelector(`textarea[data-dia="${dia}"]`);
-        localStorage.setItem(`check_${dia}`, checkbox.checked);
-        localStorage.setItem(`nota_${dia}`, textarea.value);
+        tabla.appendChild(fila);
       });
-      actualizarResumen();
     }
 
-    function cargarEstado() {
-      dias.forEach(dia => {
-        const checkbox = document.querySelector(`input[data-dia="${dia}"]`);
-        const textarea = document.querySelector(`textarea[data-dia="${dia}"]`);
-        checkbox.checked = localStorage.getItem(`check_${dia}`) === "true";
-        textarea.value = localStorage.getItem(`nota_${dia}`) || "";
-      });
-      actualizarResumen();
+    function toggleCompleto(celda, dia, hora) {
+      const clave = `${dia}_${hora}_completo`;
+      const estaCompleto = localStorage.getItem(clave) === "true";
+      if (estaCompleto) {
+        celda.classList.remove("completed");
+        localStorage.setItem(clave, false);
+      } else {
+        celda.classList.add("completed");
+        localStorage.setItem(clave, true);
+      }
     }
 
-    function actualizarResumen() {
-      let total = 0;
-      dias.forEach(dia => {
-        if (localStorage.getItem(`check_${dia}`) === "true") total++;
-      });
-      document.getElementById("doneCount").textContent = `Actividades completadas: ${total}`;
+    function agregarActividad() {
+      const dia = prompt("¿Para qué día quieres añadir la actividad? Ej: Lunes");
+      const hora = prompt("¿A qué hora? (formato 07:00 - 20:00)");
+      const actividad = prompt("¿Qué actividad quieres añadir?");
+
+      if (!dias.includes(dia) || !horas.includes(hora) || !actividad) {
+        alert("Datos inválidos. Asegúrate de usar día y hora válidos.");
+        return;
+      }
+
+      const fila = Array.from(tabla.rows).find(row => row.cells[0].textContent === hora);
+      const indexDia = dias.indexOf(dia) + 1;
+      const celda = fila.cells[indexDia];
+      celda.textContent = actividad;
+      localStorage.setItem(`${dia}_${hora}_contenido`, actividad);
     }
 
-    window.addEventListener("beforeunload", guardarEstado);
-    window.addEventListener("load", cargarEstado);
+    function verGraficos() {
+      alert("Aquí irán los gráficos en el futuro. Próximamente 🚧");
+    }
+
+    crearTabla();
   </script>
 </body>
 </html>
